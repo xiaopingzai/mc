@@ -3414,11 +3414,11 @@ class LegacyBedrock999Screen extends MenuScreen {
     c.fillStyle = '#FFFFFF'; c.font = 'bold 16px monospace';
     c.fillText('种子 999', w / 2, py + 102);
     c.fillStyle = '#AAAAAA'; c.font = '11px monospace';
-    c.fillText('旧世界类型 · 有限世界 · 256 × 256', w / 2, py + 120);
+    c.fillText('旧世界类型 · 有限边界 · 两座村庄', w / 2, py + 120);
     c.fillText('那是很多人第一次遇见村庄的种子', w / 2, py + 138);
     if (this.error) { c.fillStyle = '#FF5555'; c.font = '11px monospace'; c.fillText(this.error.slice(0, 46), w / 2, py + 158); }
     c.fillStyle = '#777777'; c.font = '10px monospace';
-    c.fillText('进入后固定种子 999；不是完整的 0.14.3 引擎复刻', w / 2, py + ph - 12);
+    c.fillText('0.14.3 旧世界氛围 · 999 种子纪念彩蛋', w / 2, py + ph - 12);
     c.textAlign = 'left';
   }
   onEsc() { this.game.ui.open(new TitleScreen(this.game)); }

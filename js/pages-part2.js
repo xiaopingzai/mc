@@ -9098,6 +9098,7 @@ class Game {
     }
     const p = this.player = new Player(this, sp[0] + 0.5, sp[1], sp[2] + 0.5);
     p.spawn = sp;
+    if (meta.legacyBedrock) { p.yaw = 0; p.pitch = -0.08; } // 站在两座村庄之间，朝北看第一座村庄
     if (meta.player) {
       const d = meta.player;
       p.pos = [...d.pos]; p.prev = [...d.pos]; p.yaw = d.yaw; p.pitch = d.pitch;
@@ -9113,6 +9114,10 @@ class Game {
       p.needsGround = true; // (a new world starts with an empty inventory in every mode, like vanilla)
     }
     this.state = 'loading';
+    if (meta.legacyBedrock) {
+      this.ui.message('999：你正站在两座旧世界村庄之间，前后各有一间铁匠铺。', '#55FF55');
+      this.ui.message('旧世界边界只有 ±128 格；走出边界就会被挡回来。', '#AAAAAA');
+    }
     this.loadStart = performance.now();
   }
   // vanilla spawn_bonus_chest: a chest on the surface near spawn, a torch on each side
@@ -16122,11 +16127,12 @@ self.CAMP263_LOOT={"chests/abandoned_camp_common_chest":{"type":"minecraft:chest
 function buildLegacy999Villages(game) {
   const w = game.world, B = BID, S = (x, y, z, id, meta = 0) => w.setBlock(x, y, z, id, meta, 2);
   const A = 0;
-  const sites = [{ cx: -28, cz: -18 }, { cx: -28, cz: 18 }];
-  const RX = 17, RZ = 15;
+  const sites = [{ cx: -28, cz: -20 }, { cx: -28, cz: 24 }];
+  const RX = 20, RZ = 24;
   // 先把两座村庄涉及的区块真实生成出来，否则 setBlock 找不到 chunk
-  const minCX = Math.floor((sites[0].cx - RX) / 16), maxCX = Math.floor((sites[1].cx + RX) / 16);
-  const minCZ = Math.floor((sites[0].cz - RZ) / 16), maxCZ = Math.floor((sites[1].cz + RZ) / 16);
+  const LOAD = 12;
+  const minCX = Math.floor((sites[0].cx - RX - LOAD) / 16), maxCX = Math.floor((sites[1].cx + RX + LOAD) / 16);
+  const minCZ = Math.floor((sites[0].cz - RZ - LOAD) / 16), maxCZ = Math.floor((sites[1].cz + RZ + LOAD) / 16);
   for (let cx = minCX; cx <= maxCX; cx++) for (let cz = minCZ; cz <= maxCZ; cz++) {
     if (!w.chunks.has(ckey(cx, cz))) game.loadChunk(cx, cz);
   }
@@ -16149,6 +16155,14 @@ function buildLegacy999Villages(game) {
   };
   platform(sites[0], top1);
   platform(sites[1], top2);
+  // 村庄外圈再多清一圈树冠，避免出生第一眼就是一棵树
+  const clearRing = (site, top, extra) => {
+    for (let x = site.cx - RX - extra; x <= site.cx + RX + extra; x++) for (let z = site.cz - RZ - extra; z <= site.cz + RZ + extra; z++) {
+      for (let y = top + 1; y <= top + 36; y++) S(x, y, z, A);
+    }
+  };
+  clearRing(sites[0], top1, 12);
+  clearRing(sites[1], top2, 12);
 
   const house = (x0, z0, top, wide, deep, roofId) => {
     for (let x = x0; x < x0 + wide; x++) for (let z = z0; z < z0 + deep; z++) {
@@ -16206,12 +16220,13 @@ function buildLegacy999Villages(game) {
     // 主路：十字土路
     for (let x = site.cx - 13; x <= site.cx + 13; x++) for (let z = site.cz - 1; z <= site.cz + 1; z++) S(x, top, z, B.dirt_path);
     for (let z = site.cz - 11; z <= site.cz + 11; z++) for (let x = site.cx - 1; x <= site.cx + 1; x++) S(x, top, z, B.dirt_path);
-    // 井
+    // 井（3×3 石圈，两层高，中央是水；不是柱状塔）
     const wx = site.cx + 5, wz = site.cz + 5;
-    for (let x = wx - 1; x <= wx + 1; x++) for (let z = wz - 1; z <= wz + 1; z++) S(x, top, z, B.cobblestone);
-    S(wx, top, wz, B.water);
-    for (let x = wx - 1; x <= wx + 1; x++) for (let z = wz - 1; z <= wz + 1; z++) S(x, top + 3, z, B.cobblestone);
-    S(wx - 1, top + 1, wz, B.cobblestone); S(wx + 1, top + 1, wz, B.cobblestone);
+    for (let x = wx - 1; x <= wx + 1; x++) for (let z = wz - 1; z <= wz + 1; z++) {
+      const ring = x !== wx || z !== wz;
+      S(x, top, z, ring ? B.cobblestone : B.water);
+      if (ring) S(x, top + 1, z, B.cobblestone);
+    }
     // 两栋民居
     house(site.cx - 13, site.cz + 5, top, 8, 6, B.oak_slab);
     house(site.cx + 6, site.cz - 12, top, 7, 6, B.dark_oak_slab);
@@ -16225,12 +16240,12 @@ function buildLegacy999Villages(game) {
     }
     for (let x = fx - 1; x <= fx + 9; x++) { S(x, top + 1, fz - 1, B.oak_fence); S(x, top + 1, fz + 5, B.oak_fence); }
     // 路灯
-    for (const [lx, lz] of [[site.cx - 9, site.cz + 1], [site.cx + 9, site.cz + 1], [site.cx + 1, site.cz - 9], [site.cx + 1, site.cz + 9]]) {
+    for (const [lx, lz] of [[site.cx - 9, site.cz - 9], [site.cx + 9, site.cz - 9], [site.cx - 9, site.cz + 9], [site.cx + 9, site.cz + 9]]) {
       S(lx, top + 1, lz, B.cobblestone); S(lx, top + 2, lz, B.cobblestone); S(lx, top + 3, lz, B.torch);
     }
     // 村民（不依赖村庄 AI，至少站在那里）
     try {
-      for (const [vx, vz] of [[site.cx + 2, site.cz + 2], [site.cx - 3, site.cz + 3], [site.cx + 4, site.cz - 6]]) {
+      for (const [vx, vz] of [[site.cx + 9, site.cz + 9], [site.cx - 8, site.cz + 10], [site.cx + 9, site.cz - 9]]) {
         const v = createMob(game, 'villager', vx + 0.5, top + 1, vz + 0.5);
         if (v) { v.persistent = true; game.entities.push(v); }
       }
@@ -16240,5 +16255,5 @@ function buildLegacy999Villages(game) {
   village(sites[0], top1, 1);
   village(sites[1], top2, 2);
   // 出生在第一个村庄的主路上，抬头就能看到村庄和另一个村庄的方向
-  return [sites[0].cx + 0.5, top1 + 1, sites[0].cz + 1.5];
+  return [sites[0].cx + 0.5, top1 + 1, 2.5];
 }
