@@ -9069,6 +9069,8 @@ class Game {
     this.legacyBedrock = !!meta.legacyBedrock;
     // 0.14.3 的触摸 HUD 是老式方向键，不是现在的摇杆；进入旧世界时切过去，
     // 离开旧世界时把玩家原来的设置还回去。
+    this.legacyLandscape = this.legacyBedrock;
+    try { Stage.update(); } catch (e) { }
     if (this.legacyBedrock) {
       if (!this.legacyTouchOld) this.legacyTouchOld = { stick: this.settings.touchStick, classic: this.settings.touchClassic };
       this.settings.touchStick = false; this.settings.touchClassic = true;

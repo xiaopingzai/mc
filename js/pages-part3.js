@@ -3375,15 +3375,18 @@ class LegacyBedrock999Screen extends MenuScreen {
     super(game, null);
     this.error = ''; this.busy = false; this.notice = '';
     this.splash = ['The sky is the limit!', '100% pure!', 'Made by Mojang!', 'Diamonds!'][Math.floor(Math.random() * 4)];
+    // 0.14.3 是横屏游戏；让 Stage 在竖屏手机上把整个页面转 90°，和原版一样。
+    this.game.legacyLandscape = true;
+    try { Stage.update(); } catch (e) { }
   }
   layout() {
     const u = this.game.ui, W = u.w, H = u.h, cx = W / 2;
-    const top = Math.max(220, Math.floor(H * 0.43));
+    const top = Math.max(126, Math.floor(H * 0.50));
     this.buttons = [
       { x: cx - 110, y: top, w: 220, h: 38, label: '游戏', main: true, onClick: () => this.enter() },
       { x: cx - 110, y: top + 46, w: 106, h: 34, label: '选项', onClick: () => { this.notice = '这是 999 彩蛋，选项仍用现在的设置。'; Sound.click(); } },
       { x: cx + 4, y: top + 46, w: 106, h: 34, label: '皮肤', onClick: () => { this.notice = '这是 999 彩蛋，皮肤仍用现在的账号皮肤。'; Sound.click(); } },
-      { x: cx - 62, y: H - 44, w: 124, h: 22, label: '返回现代版本', small: true, onClick: () => this.game.ui.open(new TitleScreen(this.game)) },
+      { x: cx - 62, y: H - 44, w: 124, h: 22, label: '返回现代版本', small: true, onClick: () => this.leave() },
     ];
     this.widgets = [];
   }
@@ -3392,8 +3395,13 @@ class LegacyBedrock999Screen extends MenuScreen {
     for (const btn of this.buttons || []) if (ui.hit(btn, mx, my)) { try { Sound.init(); Sound.click(); } catch (e) { } try { btn.onClick(); } catch (e) { } return; }
   }
   key(ui, ev) {
-    if (ev.key === 'Escape') { this.game.ui.open(new TitleScreen(this.game)); return true; }
+    if (ev.key === 'Escape') { this.leave(); return true; }
     return false;
+  }
+  leave() {
+    this.game.legacyLandscape = false;
+    try { Stage.update(); } catch (e) { }
+    this.game.ui.open(new TitleScreen(this.game));
   }
   enter() {
     if (this.busy) return;
@@ -3458,6 +3466,35 @@ class LegacyBedrock999Screen extends MenuScreen {
     c.fillText(b.label, b.x + b.w / 2, b.y + Math.floor(b.h / 2) + (b.small ? 3 : 5));
     c.textAlign = 'left';
   }
+  stonePattern(c) {
+    if (this._stonePat) return this._stonePat;
+    const cv = document.createElement('canvas'); cv.width = cv.height = 16;
+    const x = cv.getContext('2d'), rnd = RNG(1337);
+    for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) {
+      const v = 176 + Math.floor(rnd() * 36);
+      x.fillStyle = `rgb(${v},${v},${v})`; x.fillRect(i, j, 1, 1);
+    }
+    for (let k = 0; k < 20; k++) { const v = 126 + Math.floor(rnd() * 28); x.fillStyle = `rgb(${v},${v},${v})`; x.fillRect(Math.floor(rnd() * 16), Math.floor(rnd() * 16), 1, 1); }
+    this._stonePat = c.createPattern(cv, 'repeat');
+    return this._stonePat;
+  }
+  pixelate(ui) {
+    const cv = ui.canvas, c = ui.ctx, dpr = ui.dpr || 1;
+    const k = Math.max(2, Math.round(2 * dpr));
+    const lw = Math.max(1, Math.floor(cv.width / k)), lh = Math.max(1, Math.floor(cv.height / k));
+    let low = this._low;
+    if (!low) low = this._low = document.createElement('canvas');
+    if (low.width !== lw) low.width = lw; if (low.height !== lh) low.height = lh;
+    const lc = low.getContext('2d');
+    lc.imageSmoothingEnabled = false;
+    lc.drawImage(cv, 0, 0, lw, lh);
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.imageSmoothingEnabled = false;
+    c.clearRect(0, 0, cv.width, cv.height);
+    c.drawImage(low, 0, 0, cv.width, cv.height);
+    c.restore();
+  }
   draw(ui) {
     const c = ui.ctx, W = ui.w, H = ui.h, cx = W / 2;
     this.drawPanorama(ui);
@@ -3465,8 +3502,9 @@ class LegacyBedrock999Screen extends MenuScreen {
     const ly = Math.max(56, Math.floor(H * 0.115));
     c.textAlign = 'center';
     c.font = 'bold 45px monospace';
+    const stone = this.stonePattern(c);
     for (const [ox, oy] of [[3, 3], [-3, 3], [3, -3], [-3, -3], [0, 0]]) {
-      c.fillStyle = (ox === 0 && oy === 0) ? '#E8E8E8' : '#5B5B5B';
+      c.fillStyle = (ox === 0 && oy === 0) ? stone : '#4A4A4A';
       c.fillText('MINECRAFT', cx + ox, ly + oy);
     }
     // POCKET EDITION 石条
@@ -3477,12 +3515,19 @@ class LegacyBedrock999Screen extends MenuScreen {
     c.fillStyle = '#F0F0F0'; c.font = 'bold 11px monospace';
     c.fillText('P O C K E T   E D I T I O N', cx, by + 13);
     // 黄色随机 splash
-    c.save(); c.translate(cx + 56, by + 29); c.rotate(-0.16);
-    c.fillStyle = '#FFFF55'; c.font = 'bold 11px monospace';
+    c.save(); c.translate(cx + 112, by + 2); c.rotate(-0.16);
+    c.fillStyle = '#FFFF55'; c.font = 'bold 11px monospace'; c.textAlign = 'left';
     c.shadowColor = 'rgba(0,0,0,0.45)'; c.shadowBlur = 2; c.fillText(this.splash, 0, 0);
     c.shadowBlur = 0; c.restore();
     // 旧版按钮
     for (const b of this.buttons || []) this.drawButton(c, b);
+    // 右下角的地球按钮（0.14.3 标题上的语言/账号入口）
+    const gx = W - 31, gy = H - 35, gr = 10;
+    c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(gx - gr - 2, gy - gr - 2, gr * 2 + 4, gr * 2 + 4);
+    c.fillStyle = '#4C86D8'; c.beginPath(); c.arc(gx, gy, gr, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#55A85A';
+    c.fillRect(gx - 6, gy - 5, 5, 4); c.fillRect(gx + 1, gy - 1, 5, 5); c.fillRect(gx - 5, gy + 4, 4, 3);
+    c.fillStyle = '#88C8FF'; c.fillRect(gx - 3, gy - 1, 2, 2); c.fillRect(gx + 6, gy - 4, 2, 2);
     // 底部文字
     c.fillStyle = '#E8E8E8'; c.font = '10px monospace'; c.textAlign = 'left';
     c.fillText('© Mojang AB', 6, H - 8);
@@ -3491,8 +3536,11 @@ class LegacyBedrock999Screen extends MenuScreen {
     if (this.error) { c.fillStyle = '#FF5555'; c.font = '10px monospace'; c.fillText(this.error.slice(0, 54), cx, H - 70); }
     if (this.busy) { c.fillStyle = '#FFFFFF'; c.font = '11px monospace'; c.fillText('正在生成旧世界…', cx, H - 70); }
     c.textAlign = 'left';
+    // 0.14.3 的界面是低分辨率像素画面：把整张标题按 2 倍 CSS 像素降采样再放大，
+    // 文字、山坡和按钮都变成旧版那种颗粒感。
+    this.pixelate(ui);
   }
-  onEsc() { this.game.ui.open(new TitleScreen(this.game)); }
+  onEsc() { this.leave(); }
 }
 
 
@@ -35082,5 +35130,26 @@ Game.prototype.capturePanorama = function (size = 512) {
     for (const id of ['chat', 'view', 'players', 'emote', 'f3']) if (L[id]) L[id] = hide(L[id]);
     if (L.pause) L.pause = { x: Math.max(4, L.W - 26), y: 25, w: 18, h: 18 };
     return L;
+  };
+})();
+
+// ===== 0.14.3 横屏 =====
+// 原版基岩版是横屏的。竖屏手机上进入彩蛋/旧世界时，把 Stage 像原版一样转过来；
+// 回到普通标题/普通世界再转回去。
+(() => {
+  const sw = Stage.want;
+  Stage.want = function () {
+    const g = typeof game !== 'undefined' && game;
+    if (g && g.legacyLandscape && innerHeight > innerWidth * 1.05 && (TouchDevice.kind === 'phone' || TouchDevice.kind === 'tablet' || navigator.maxTouchPoints > 0)) return true;
+    return sw.call(this);
+  };
+  const tl = TitleScreen.prototype.layout;
+  TitleScreen.prototype.layout = function () {
+    const g = this.game;
+    if (g && g.legacyLandscape) {
+      g.legacyLandscape = false;
+      try { Stage.update(); } catch (e) { }
+    }
+    return tl.call(this);
   };
 })();
