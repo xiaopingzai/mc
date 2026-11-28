@@ -28025,14 +28025,14 @@ const CloudSave = (() => {
           const part = bytes.subarray(i * CHUNK, Math.min((i + 1) * CHUNK, bytes.length));
           const url = Account.apiBase() + '/cloud.php?action=push&_t=' + encodeURIComponent(Account.token)
             + '&upload=' + encodeURIComponent(upload) + '&index=' + i + '&total=' + total;
-          const r = await fetch(url, { method: 'POST', body: part });
+          const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: part });
           const j = await r.json().catch(() => ({ error: '服务器没有回应（HTTP ' + r.status + '）' }));
           if (!r.ok || (j && j.error)) return { status: r.status, j };
           last = { status: r.status, j };
         }
         return last || { status: 0, j: { error: '云存档分片上传失败' } };
       }
-      const r = await fetch(Account.apiBase() + '/cloud.php?action=push&_t=' + encodeURIComponent(Account.token), { method: 'POST', body: bytes });
+      const r = await fetch(Account.apiBase() + '/cloud.php?action=push&_t=' + encodeURIComponent(Account.token), { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: bytes });
       const j = await r.json().catch(() => ({ error: '服务器没有回应' }));
       return { status: r.status, j };
     } catch (e) { throw new Error('连不上服务器，云存档没有同步'); }
