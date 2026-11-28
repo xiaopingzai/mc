@@ -6,7 +6,7 @@ const { createApi } = require('../lib/backend');
 let api = null;
 function backend() {
   if (!api) {
-    const store = getStore({ name: 'opusmc', consistency: 'strong' });
+    const store = getStore('opusmc');
     api = createApi({ store });
   }
   return api;
