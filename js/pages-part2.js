@@ -9067,6 +9067,15 @@ class Game {
     // 旧版基岩彩蛋：±128 的有限世界边界（256×256），进入后把玩家限制在边界内
     this.legacyBorder = meta.legacyBedrock ? Math.max(32, Math.floor((meta.legacySize || 256) / 2)) : 0;
     this.legacyBedrock = !!meta.legacyBedrock;
+    // 0.14.3 的触摸 HUD 是老式方向键，不是现在的摇杆；进入旧世界时切过去，
+    // 离开旧世界时把玩家原来的设置还回去。
+    if (this.legacyBedrock) {
+      if (!this.legacyTouchOld) this.legacyTouchOld = { stick: this.settings.touchStick, classic: this.settings.touchClassic };
+      this.settings.touchStick = false; this.settings.touchClassic = true;
+    } else if (this.legacyTouchOld) {
+      this.settings.touchStick = this.legacyTouchOld.stick; this.settings.touchClassic = this.legacyTouchOld.classic;
+      this.legacyTouchOld = null;
+    }
     if (this.world) this.unloadAll();
     this.entities = []; this.particles.list = []; this.sleeping = null; this.portalOverlay = 0;
     this.welcome = true;
@@ -9589,8 +9598,17 @@ class Game {
     else if (!p.loadedHere()) { p.savePrev(); }
     else { if (p.respawnGround) this.guard('respawn', () => this.respawnSettle()); this.guard('player', () => p.tick(input)); }
     if (this.legacyBorder) {
+      // 0.14.3 的旧世界是 256×256×128：水平方向是隐形基岩边界，头顶 128 格也是上限。
       const b = this.legacyBorder, was = [p.pos[0], p.pos[2]];
       p.pos[0] = clamp(p.pos[0], -b, b); p.pos[2] = clamp(p.pos[2], -b, b);
+      if (p.pos[1] > 127) {
+        p.pos[1] = 127; p.vel[1] = 0;
+        const now = performance.now();
+        if (!this._legacyTopAt || now - this._legacyTopAt > 8000) {
+          this._legacyTopAt = now;
+          try { this.ui.message('旧世界高度上限：128 格', '#AAAAAA'); } catch (e) { }
+        }
+      }
       if (was[0] !== p.pos[0] || was[1] !== p.pos[2]) {
         p.vel[0] = 0; p.vel[2] = 0;
         const now = performance.now();

@@ -3372,14 +3372,28 @@ class TitleScreen extends MenuScreen {
 // 标题 Logo 连点 9 下，或键盘连按三下 9 打开。进入后固定种子 999、旧格式生成器、±128 有限世界。
 class LegacyBedrock999Screen extends MenuScreen {
   constructor(game) {
-    super(game, null); this.blurBg = false; this.bgDirt = true; this.bgDim = 0; this.error = ''; this.busy = false;
+    super(game, null);
+    this.error = ''; this.busy = false; this.notice = '';
+    this.splash = ['The sky is the limit!', '100% pure!', 'Made by Mojang!', 'Diamonds!'][Math.floor(Math.random() * 4)];
   }
   layout() {
-    const u = this.game.ui, cx = u.w / 2;
-    this.widgets = [
-      { x: cx - 104, y: u.h - 66, w: 208, h: 24, label: '进入 999 旧世界', gold: true, onClick: () => this.enter() },
-      { x: cx - 104, y: u.h - 34, w: 208, h: 20, label: '回到现在的版本', onClick: () => this.game.ui.open(new TitleScreen(this.game)) },
+    const u = this.game.ui, W = u.w, H = u.h, cx = W / 2;
+    const top = Math.max(220, Math.floor(H * 0.43));
+    this.buttons = [
+      { x: cx - 110, y: top, w: 220, h: 38, label: '游戏', main: true, onClick: () => this.enter() },
+      { x: cx - 110, y: top + 46, w: 106, h: 34, label: '选项', onClick: () => { this.notice = '这是 999 彩蛋，选项仍用现在的设置。'; Sound.click(); } },
+      { x: cx + 4, y: top + 46, w: 106, h: 34, label: '皮肤', onClick: () => { this.notice = '这是 999 彩蛋，皮肤仍用现在的账号皮肤。'; Sound.click(); } },
+      { x: cx - 62, y: H - 44, w: 124, h: 22, label: '返回现代版本', small: true, onClick: () => this.game.ui.open(new TitleScreen(this.game)) },
     ];
+    this.widgets = [];
+  }
+  mouseDown(ui, mx, my, b) {
+    if (b !== 0) return;
+    for (const btn of this.buttons || []) if (ui.hit(btn, mx, my)) { try { Sound.init(); Sound.click(); } catch (e) { } try { btn.onClick(); } catch (e) { } return; }
+  }
+  key(ui, ev) {
+    if (ev.key === 'Escape') { this.game.ui.open(new TitleScreen(this.game)); return true; }
+    return false;
   }
   enter() {
     if (this.busy) return;
@@ -3398,31 +3412,89 @@ class LegacyBedrock999Screen extends MenuScreen {
       this.layout();
     });
   }
-  drawExtra(ui) {
-    const c = ui.ctx, w = ui.w, h = ui.h;
-    const pw = Math.min(330, w - 22), ph = Math.min(230, h - 120);
-    const px = Math.floor((w - pw) / 2), py = Math.max(24, Math.floor((h - ph) / 2) - 24);
-    c.fillStyle = 'rgba(0,0,0,0.72)'; c.fillRect(px, py, pw, ph);
-    c.strokeStyle = '#55FF55'; c.lineWidth = 2; c.strokeRect(px + 2, py + 2, pw - 4, ph - 4);
+  drawPanorama(ui) {
+    const c = ui.ctx, W = ui.w, H = ui.h;
+    const sky = c.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#6D9FD8'); sky.addColorStop(0.55, '#A9C8E8'); sky.addColorStop(1, '#D9E8F2');
+    c.fillStyle = sky; c.fillRect(0, 0, W, H);
+    // 0.14.3 的标题背景是模糊的旧世界全景；这里用低多边形远山、草地和一条河来示意
+    c.save();
+    try { c.filter = 'blur(2px)'; } catch (e) { }
+    const hill = (y, color, amp) => {
+      c.fillStyle = color;
+      c.beginPath(); c.moveTo(-10, H);
+      for (let x = -10; x <= W + 10; x += 12) c.lineTo(x, y + Math.sin(x * 0.035 + amp) * 10 + Math.sin(x * 0.013 + amp * 2) * 16);
+      c.lineTo(W + 10, H); c.closePath(); c.fill();
+    };
+    hill(H * 0.47, '#6F8E63', 1.1);
+    hill(H * 0.55, '#5C7C4E', 2.0);
+    c.fillStyle = '#456B3E'; c.beginPath();
+    for (let x = 0; x <= W; x += 8) c.lineTo(x, H * 0.62 + Math.sin(x * 0.04) * 8);
+    c.lineTo(W, H); c.lineTo(0, H); c.fill();
+    // 左下角的小湖，边缘做成弯的，避免像一条路
+    c.fillStyle = '#4D79A8'; c.beginPath();
+    c.moveTo(0, H); c.lineTo(0, H * 0.84);
+    c.bezierCurveTo(W * 0.18, H * 0.76, W * 0.3, H * 0.95, W * 0.44, H);
+    c.closePath(); c.fill();
+    c.fillStyle = '#5486B6'; c.beginPath();
+    c.moveTo(0, H * 0.92); c.lineTo(0, H * 0.87);
+    c.bezierCurveTo(W * 0.12, H * 0.82, W * 0.22, H * 0.95, W * 0.3, H);
+    c.closePath(); c.fill();
+    // 远处的方块树
+    for (const [x, y, s] of [[W * 0.74, H * 0.52, 16], [W * 0.82, H * 0.56, 12], [W * 0.28, H * 0.5, 10]]) {
+      c.fillStyle = '#3F5D35'; c.fillRect(x, y, s * 0.3, s);
+      c.fillRect(x - s * 0.35, y - s * 0.4, s, s * 0.7);
+    }
+    c.restore();
+    c.fillStyle = 'rgba(0,0,0,0.10)'; c.fillRect(0, 0, W, H);
+  }
+  drawButton(c, b) {
+    const fill = b.main ? '#9C9C9C' : '#8E8E8E';
+    c.fillStyle = fill; c.fillRect(b.x, b.y, b.w, b.h);
+    c.fillStyle = '#C8C8C8'; c.fillRect(b.x, b.y, b.w, 2); c.fillRect(b.x, b.y, 2, b.h);
+    c.fillStyle = '#4A4A4A'; c.fillRect(b.x, b.y + b.h - 2, b.w, 2); c.fillRect(b.x + b.w - 2, b.y, 2, b.h);
+    c.fillStyle = b.main ? '#FFFFFF' : '#E8E8E8';
+    c.font = `bold ${b.small ? 10 : 14}px monospace`; c.textAlign = 'center';
+    c.fillText(b.label, b.x + b.w / 2, b.y + Math.floor(b.h / 2) + (b.small ? 3 : 5));
+    c.textAlign = 'left';
+  }
+  draw(ui) {
+    const c = ui.ctx, W = ui.w, H = ui.h, cx = W / 2;
+    this.drawPanorama(ui);
+    // MINECRAFT 石质标题
+    const ly = Math.max(56, Math.floor(H * 0.115));
     c.textAlign = 'center';
-    c.fillStyle = '#FFFFFF'; c.font = 'bold 28px monospace';
-    c.fillText('MINECRAFT', w / 2, py + 40);
-    c.fillStyle = '#FFFF55'; c.font = '12px monospace';
-    c.fillText('POCKET EDITION 0.14.3', w / 2, py + 58);
-    c.fillStyle = '#A0A0A0'; c.font = '11px monospace';
-    c.fillText('旧版基岩版 · 隐藏彩蛋', w / 2, py + 76);
-    c.fillStyle = '#FFFFFF'; c.font = 'bold 16px monospace';
-    c.fillText('种子 999', w / 2, py + 102);
-    c.fillStyle = '#AAAAAA'; c.font = '11px monospace';
-    c.fillText('旧世界类型 · 有限边界 · 两座村庄', w / 2, py + 120);
-    c.fillText('那是很多人第一次遇见村庄的种子', w / 2, py + 138);
-    if (this.error) { c.fillStyle = '#FF5555'; c.font = '11px monospace'; c.fillText(this.error.slice(0, 46), w / 2, py + 158); }
-    c.fillStyle = '#777777'; c.font = '10px monospace';
-    c.fillText('0.14.3 旧世界氛围 · 999 种子纪念彩蛋', w / 2, py + ph - 12);
+    c.font = 'bold 45px monospace';
+    for (const [ox, oy] of [[3, 3], [-3, 3], [3, -3], [-3, -3], [0, 0]]) {
+      c.fillStyle = (ox === 0 && oy === 0) ? '#E8E8E8' : '#5B5B5B';
+      c.fillText('MINECRAFT', cx + ox, ly + oy);
+    }
+    // POCKET EDITION 石条
+    const bw = Math.min(210, W - 60), bx = cx - bw / 2, by = ly + 12;
+    c.fillStyle = '#8B8B8B'; c.fillRect(bx, by, bw, 18);
+    c.fillStyle = '#BDBDBD'; c.fillRect(bx, by, bw, 2);
+    c.fillStyle = '#3F3F3F'; c.fillRect(bx, by + 16, bw, 2);
+    c.fillStyle = '#F0F0F0'; c.font = 'bold 11px monospace';
+    c.fillText('P O C K E T   E D I T I O N', cx, by + 13);
+    // 黄色随机 splash
+    c.save(); c.translate(cx + 56, by + 29); c.rotate(-0.16);
+    c.fillStyle = '#FFFF55'; c.font = 'bold 11px monospace';
+    c.shadowColor = 'rgba(0,0,0,0.45)'; c.shadowBlur = 2; c.fillText(this.splash, 0, 0);
+    c.shadowBlur = 0; c.restore();
+    // 旧版按钮
+    for (const b of this.buttons || []) this.drawButton(c, b);
+    // 底部文字
+    c.fillStyle = '#E8E8E8'; c.font = '10px monospace'; c.textAlign = 'left';
+    c.fillText('© Mojang AB', 6, H - 8);
+    c.textAlign = 'right'; c.fillText('v0.14.3', W - 6, H - 8); c.textAlign = 'center';
+    if (this.notice) { c.fillStyle = '#FFFF55'; c.font = '10px monospace'; c.fillText(this.notice, cx, H - 56); }
+    if (this.error) { c.fillStyle = '#FF5555'; c.font = '10px monospace'; c.fillText(this.error.slice(0, 54), cx, H - 70); }
+    if (this.busy) { c.fillStyle = '#FFFFFF'; c.font = '11px monospace'; c.fillText('正在生成旧世界…', cx, H - 70); }
     c.textAlign = 'left';
   }
   onEsc() { this.game.ui.open(new TitleScreen(this.game)); }
 }
+
 
 // 标题页：连点 Logo 9 下，或键盘连按 9 三下，打开旧版基岩 999 彩蛋
 (() => {
@@ -28901,8 +28973,10 @@ Object.assign(TOUCH_ICONS, {
       c.imageSmoothingEnabled = sm;
       if (L.sneak) this.btn(c, L.sneak, th.sneak ? 'sneakOn' : 'sneak', !!th.sneak);
     }
-    this.btn(c, L.emote, 'emote', false);
-    this.btn(c, L.f3, null, !!ui.debug, 'F3');
+    if (!g.legacyBedrock) {
+      this.btn(c, L.emote, 'emote', false);
+      this.btn(c, L.f3, null, !!ui.debug, 'F3');
+    }
     if (L.attack) { this.btn(c, L.attack, 'attack', g.mouseBtn[0]); this.btn(c, L.use, 'use', g.mouseBtn[2]); }
     c.restore();
   };
@@ -34953,3 +35027,60 @@ Game.prototype.capturePanorama = function (size = 512) {
   this.panoCam = null; r.forceSize = null; this.panoAlpha = alpha;
   return { seed: this.world.seedStr, pos: this.titleCam.map(v => +v.toFixed(2)), img: out.toDataURL('image/jpeg', 0.86) };
 };
+
+// ===== 旧版基岩 0.14.3 风格 HUD =====
+// 只在 999 彩蛋世界生效：生命在左上、饥饿在右上、物品栏在底部，隐藏现代版的
+// 经验条 / 护甲 / 顶部 F3 与表情按钮，尽量贴近 0.14.3 的屏幕布局。
+(() => {
+  const prev = UI.prototype.drawHUD;
+  UI.prototype.drawHUD = function (...args) {
+    const g = this.game;
+    if (!g || !g.legacyBedrock || g.state !== 'play' || this.screen || this.hideHud) return prev.apply(this, args);
+    const p = g.player, c = this.ctx, W = this.w, H = this.h;
+    if (g.mode === 'spectator') return;
+    // crosshair (inverted, same as the modern HUD)
+    if (g.perspective === 0) {
+      c.globalCompositeOperation = 'difference';
+      this.sprite('crosshair', Math.floor(W / 2 - 7.5), Math.floor(H / 2 - 7.5));
+      c.globalCompositeOperation = 'source-over';
+    }
+    if (!p.creative) {
+      // 0.14.3: hearts top-left
+      const hp = Math.ceil(p.health), hearts = Math.min(10, Math.ceil((p.maxHealth || 20) / 2));
+      for (let i = 0; i < hearts; i++) {
+        const x = 5 + i * 8, y = 5;
+        this.sprite('heart_container', x, y);
+        const v = hp - i * 2;
+        if (v >= 2) this.sprite('heart_full', x, y); else if (v >= 1) this.sprite('heart_half', x, y);
+      }
+      // hunger top-right
+      for (let i = 0; i < 10; i++) {
+        const x = W - 14 - i * 8, y = 5;
+        this.sprite('food_empty', x, y);
+        const v = p.food - i * 2;
+        if (v >= 2) this.sprite('food_full', x, y); else if (v >= 1) this.sprite('food_half', x, y);
+      }
+    }
+    // 0.14.3: the hotbar stays at the bottom, no xp / armour rows
+    const hx = Math.floor(W / 2 - 91), hy = H - 22;
+    this.sprite('hotbar', hx, hy);
+    this.sprite('hotbar_sel', hx - 1 + p.inv.sel * 20, hy - 1);
+    for (let i = 0; i < 9; i++) this.drawItem(p.inv.slots[i], hx + 3 + i * 20, hy + 3);
+  };
+})();
+
+
+// ===== 旧版基岩 0.14.3 控制布局 =====
+// 0.14.3 顶部只有生命/饥饿，没有聊天、视角、玩家列表、表情和 F3 这一排；
+// 这里把它们移出屏幕，只留下一个小的暂停按钮，并把左下改成老式方向键。
+(() => {
+  const pl = TouchControls.prototype.layout;
+  TouchControls.prototype.layout = function () {
+    const L = pl.call(this), g = this.g;
+    if (!g || !g.legacyBedrock) return L;
+    const hide = (r) => ({ x: -1000, y: -1000, w: 0, h: 0 });
+    for (const id of ['chat', 'view', 'players', 'emote', 'f3']) if (L[id]) L[id] = hide(L[id]);
+    if (L.pause) L.pause = { x: Math.max(4, L.W - 26), y: 25, w: 18, h: 18 };
+    return L;
+  };
+})();
