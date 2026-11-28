@@ -8826,6 +8826,13 @@ class Game {
       modChain: false, modOre: false, modChainR: 4, modOreR: 4,
       // 苹果皮（AppleSkin）：食物提示 + 饱和度金边，纯客户端显示
       modAppleSkin: true }, saved); // maxFps 0 + VSync: the display's own rate
+    // 旧版「竖着拿手机时旋转画面」默认是开，很多设备上会把标题/菜单整个转 90°；
+    // 升级后默认改回正向竖屏，只迁移一次；之后玩家自己打开设置里的开关仍会保留。
+    if (saved.rotatePortrait === true && saved.rotatePortraitUiVersion !== 2) {
+      this.settings.rotatePortrait = false;
+      this.settings.rotatePortraitUiVersion = 2;
+      this.saveSettings();
+    }
     // the shader level is 0 - 4 (关 ... 极限); an older version saved it as on / off (true): that is 高 now. Any
     // other value made the shader pack find no settings and every frame failed to draw
     const sv = this.settings.shaders;

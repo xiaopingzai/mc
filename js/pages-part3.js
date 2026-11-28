@@ -21250,7 +21250,7 @@ class TouchControls {
         if (typeof Telemetry !== 'undefined' && Telemetry.count) { Telemetry.count('fs_try'); Telemetry.flush && Telemetry.flush(false); }
         try {
           const r = req.call(de, { navigationUI: 'hide' });
-          if (r && r.then) r.then(() => { Telemetry.count && Telemetry.count('fs_ok'); if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape'); }).catch(() => { });
+          if (r && r.then) r.then(() => { Telemetry.count && Telemetry.count('fs_ok'); }).catch(() => { });
         } catch (e) { }
       }
     }
@@ -28475,7 +28475,9 @@ const Stage = {
   },
   want() {
     const g = typeof game !== 'undefined' && game;
-    return !!g && TouchDevice.kind === 'phone' && g.settings.rotatePortrait !== false && innerHeight > innerWidth * 1.05;
+    // 只有玩家在选项里明确打开、并经过 20261128g 迁移标记，才允许 CSS 旋转；
+    // 旧存档里的 rotatePortrait:true 不再让标题/菜单默认横过来。
+    return !!g && TouchDevice.kind === 'phone' && g.settings.rotatePortrait === true && g.settings.rotatePortraitUiVersion === 2 && innerHeight > innerWidth * 1.05;
   },
   update() {
     if (!this.el) return;
@@ -28959,7 +28961,7 @@ const FpsChoice = {
       bt('编辑按钮布局…', () => g.ui.open(new TouchLayoutScreen(g, this))),
       Object.assign(bt(() => '帧率上限：' + FpsChoice.label(g, s.maxFps), () => FpsChoice.next(g)),
         { tip: ['越高越流畅，但更耗电、手机更热', '自动：90 / 120 Hz 的屏幕上是 60 帧', '手机热到跟不上时会自动降回 60 帧'] }),
-      bt(() => '竖着拿手机时旋转画面：' + (s.rotatePortrait === false ? '关' : '开'), () => { s.rotatePortrait = s.rotatePortrait === false; Stage.update(); }),
+      bt(() => '竖着拿手机时旋转画面：' + (s.rotatePortrait === true ? '开' : '关'), () => { s.rotatePortrait = s.rotatePortrait !== true; s.rotatePortraitUiVersion = 2; Stage.update(); }),
     ];
   };
 })();

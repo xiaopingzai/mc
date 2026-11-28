@@ -222,6 +222,9 @@ else{W.addEventListener("load",arm,false);}
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>OpusMC</title>
+<link rel="preload" href="js/pages-part1.js?v=20261128g" as="script" fetchpriority="high">
+<link rel="preload" href="js/pages-part2.js?v=20261128g" as="script" fetchpriority="high">
+<link rel="preload" href="js/pages-part3.js?v=20261128g" as="script" fetchpriority="high">
 <style>
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000;
     touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
@@ -267,6 +270,8 @@ else{W.addEventListener("load",arm,false);}
   }
   /* 主菜单视频背景：在 #gl 之上、#ui 之下 */
   #titlevideo { position: absolute; left: 0; top: 0; right: 0; bottom: 0; width: 100%; height: 100%; object-fit: cover; display: none; background: #000; pointer-events: none; z-index: 1; }
+  /* Netlify 免费版会向页面右下角注入 iframe 标识；这里连同容器一起隐藏，避免挡到游戏 UI */
+  iframe#nl-badge-frame, iframe#nl-hud-frame { display: none !important; width: 0 !important; height: 0 !important; opacity: 0 !important; pointer-events: none !important; }
 </style>
 </head>
 <body>
@@ -560,8 +565,30 @@ else{W.addEventListener("load",arm,false);}
     setTimeout(wait, 100);
   })();
 </script>
-<script src="js/pages-part1.js?v=20261128f"></script>
-<script src="js/pages-part2.js?v=20261128f"></script>
-<script src="js/pages-part3.js?v=20261128f"></script>
+<script src="js/pages-part1.js?v=20261128g" defer></script>
+<script src="js/pages-part2.js?v=20261128g" defer></script>
+<script src="js/pages-part3.js?v=20261128g" defer></script>
+<script>
+  // 去掉 Netlify 免费版右下角的 "Powered by Netlify" 注入层（它由 /.netlify/scripts/hud 动态建 iframe），
+  // 同时移除该脚本本身，少一个请求、也避免它挡住触控。
+  (function () {
+    function strip() {
+      try {
+        var ids = ['nl-badge-frame', 'nl-hud-frame'];
+        for (var i = 0; i < ids.length; i++) {
+          var el = document.getElementById(ids[i]);
+          if (el && el.parentNode) el.parentNode.removeChild(el);
+        }
+        var scripts = document.querySelectorAll('script[src*="/.netlify/scripts/hud"]');
+        for (var j = 0; j < scripts.length; j++) {
+          if (scripts[j].parentNode) scripts[j].parentNode.removeChild(scripts[j]);
+        }
+      } catch (e) { }
+    }
+    strip();
+    try { new MutationObserver(strip).observe(document.documentElement, { childList: true, subtree: true }); } catch (e) { }
+    setInterval(strip, 1000);
+  })();
+</script>
 </body>
 </html>
