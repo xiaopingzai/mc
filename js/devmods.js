@@ -275,6 +275,48 @@ function sendNetModPerm(g, name, key, on) {
     }
   }
 
+  // 独立「模组」界面：不依赖管理员账号，只要不在联机房间里就能用。
+  // 它和开发者调试分开，专门放三个内置模组的开关和范围，适合在静态站上自己测试。
+  class ModsScreen extends OptionsListScreen {
+    constructor(game, parent) { super(game, parent, '模组 · 高级', 'mods'); this.titleY = 12; this.pauses = game.state === 'play'; }
+    solo() { const g = this.game; return !(g.net || g.p2pHost || g.p2pGuest); }
+    options() {
+      const g = this.game, s = g.settings, solo = this.solo(), onoff = (v) => v ? '开' : '关';
+      const tip = (text) => solo ? text : ['联机房间里模组由房主控制', '请房主在 暂停 → 房间 → 模组权限 里打开'];
+      return [
+        { label: () => '连锁挖掘：' + onoff(g.modUse('chain')), onClick: () => g.modSet('chain', !g.modUse('chain')), wide: true, enabled: solo,
+          tip: tip(['挖矿石或原木时，把附近相连的同类方块一起挖掉', '手机默认最多 32 个，电脑最多 64 个']) },
+        { label: () => '矿透视：' + onoff(g.modUse('ore')), onClick: () => g.modSet('ore', !g.modUse('ore')), wide: true, enabled: solo,
+          tip: tip(['附近已加载区块里的矿石会隔墙显示彩色轮廓', '不改变方块本身，也不会自动挖矿']) },
+        { label: () => '苹果皮（食物信息）：' + onoff(s.modAppleSkin !== false), onClick: () => { s.modAppleSkin = s.modAppleSkin === false; g.saveSettings(); }, wide: true,
+          tip: ['饥饿条上叠加金色饱和度；食物提示里显示饥饿值、饱和度和效果概率', '纯客户端显示，不改存档'] },
+        { slider: true, wide: true, enabled: solo, value: (clamp(Number(s.modChainR) || 4, 1, 8) - 1) / 7,
+          label: () => '连锁范围：' + clamp(Math.round(Number(s.modChainR) || 4), 1, 8) + ' 格',
+          onChange: (v) => { s.modChainR = Math.round(1 + v * 7); g.saveSettings(); },
+          tip: ['以挖掉的方块为中心，最多向外找这么多格；范围越大越耗性能'] },
+        { slider: true, wide: true, enabled: solo, value: (clamp(Number(s.modOreR) || 4, 2, 8) - 2) / 6,
+          label: () => '矿透范围：' + clamp(Math.round(Number(s.modOreR) || 4), 2, 8) + ' 个区块',
+          onChange: (v) => { s.modOreR = Math.round(2 + v * 6); g.saveSettings(); g._oreCache = null; },
+          tip: ['范围越大扫描越慢；手机上建议 3~4 个区块'] },
+        { label: '恢复默认', onClick: () => {
+          s.modChain = false; s.modOre = false; s.modChainR = 4; s.modOreR = 4; s.modAppleSkin = true;
+          g.saveSettings(); g._oreCache = null; this.layout();
+          g.ui.message('模组已恢复默认：连锁挖掘/矿透视关闭，苹果皮开启', '#FFFF55');
+        }, wide: true, enabled: solo, tip: ['只恢复模组设置，不影响开发者调试里的其他选项'] },
+      ];
+    }
+    drawExtra(ui) {
+      ui.listBackground(this.top, this.bottom);
+      const c = ui.ctx, w = ui.w, solo = this.solo();
+      Font.center(c, solo ? '仅单机生效 · 设置只保存在本机' : '联机中已锁定 · 模组由房主控制', w / 2, 23, solo ? '#80FF80' : '#FFAA00');
+      const badge = '高级', bw = Font.width(badge) + 10;
+      c.fillStyle = 'rgba(246,205,80,0.16)'; c.fillRect(w - bw - 8, 7, bw, 14);
+      Font.center(c, badge, w - bw / 2 - 8, 9, '#FFE27A');
+    }
+    back() { this.game.saveSettings(); this.game.ui.open(this.parent); }
+    onEsc() { this.back(); }
+  }
+
   // 房主：逐个房客开关模组。P2P 房间走 modperm 消息；服务器房间走隐藏的房间聊天广播。
   class ModPermScreen extends MenuScreen {
     constructor(game, parent, roomScreen) { super(game, '模组权限'); this.parent = parent; this.room = roomScreen || null; this.pauses = false; this.titleY = 10; this.page = 0; this.note = ''; }
@@ -371,6 +413,7 @@ function sendNetModPerm(g, name, key, on) {
 
   window.MODPERM_CHAT = MODPERM_CHAT;
   window.DeveloperScreen = DeveloperScreen;
+  window.ModsScreen = ModsScreen;
   window.ModPermScreen = ModPermScreen;
   window.DevNameScreen = DevNameScreen;
 })();
