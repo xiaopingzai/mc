@@ -1,6 +1,6 @@
 'use strict';
 // Netlify Functions entry point. All /api/*.php routes are rewritten here.
-const { getStore } = require('@netlify/blobs');
+const { getStore, connectLambda } = require('@netlify/blobs');
 const { createApi } = require('../lib/backend');
 
 let api = null;
@@ -14,6 +14,9 @@ function backend() {
 
 exports.handler = async (event, context) => {
   try {
+    // Netlify can run Functions in Lambda compatibility mode, where the Blobs
+    // environment is not injected into process.env automatically.
+    if (typeof connectLambda === 'function') connectLambda(event);
     return await backend().handle(event, context);
   } catch (e) {
     console.error('opusmc api error', e);
