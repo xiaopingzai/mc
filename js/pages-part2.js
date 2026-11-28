@@ -9019,19 +9019,24 @@ class Game {
     const run = (async () => {
     // 世界类型（原版 WorldPresets）：只有纯超平坦沿用旧格式（gen 1），其余都走 1.18+ 生成器（gen 2）
     const wt = opts.worldType || (flat ? 'flat' : 'normal');
-    if (wt === 'debug') mode = 'spectator';
-    const isFlat = wt === 'flat' || wt === 'flat_all';
+    // 隐藏彩蛋「旧版基岩 999」：固定 999 种子 + 旧格式生成器 + 有限世界边界。
+    // 它不接入 1.18 的 worker 生成器，否则种子和旧版地形都会被新生成器覆盖。
+    const legacy = !!opts.legacyBedrock || wt === 'legacy999';
+    const preset = wt === 'legacy999' ? 'normal' : wt;
+    if (preset === 'debug') mode = 'spectator';
+    const isFlat = preset === 'flat' || preset === 'flat_all';
     // 非默认世界类型走本地生成器（gen 1）：完整生成器（gen 2 的 worker）不认世界类型，
     // 之前调试模式、放大化、大型生物群系都被它接管，选了等于没选
-    const gen = wt === 'normal' ? 2 : 1;
+    const gen = preset === 'normal' && !legacy ? 2 : 1;
     let seed;
     if (gen === 2) seed = parseSeed(seedStr);
     else { seed = parseInt(seedStr, 10); if (!seedStr) seed = (Math.random() * 2 ** 31) | 0; else if (isNaN(seed) || String(seed) !== seedStr.trim()) seed = hashStr(seedStr); }
     const id = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    const meta = { id, name: name || '新的世界', seed, gen, mode, flat: isFlat, created: Date.now(), lastPlayed: Date.now(), time: wt === 'debug' ? 6000 : 1000, player: null,
+    const meta = { id, name: name || '新的世界', seed, gen, mode, flat: isFlat, created: Date.now(), lastPlayed: Date.now(), time: preset === 'debug' ? 6000 : 1000, player: null,
       hardcore: !!opts.hardcore, difficulty: opts.difficulty ?? 2, cheats: opts.cheats ?? mode === 'creative', structures: opts.structures !== false, bonus: !!opts.bonus,
-      worldType: wt, flatLayers: opts.flatLayers || null, flatBottom: isFlat ? -64 : null, flatBiome: opts.flatBiome || 'plains', flatOpts: opts.flatOpts || null, bonusChest: !!opts.bonus,
-      biome: opts.biome || 'plains', experiments: opts.experiments || {}, gameRules: opts.gameRules || null };
+      worldType: preset, flatLayers: opts.flatLayers || null, flatBottom: isFlat ? -64 : null, flatBiome: opts.flatBiome || 'plains', flatOpts: opts.flatOpts || null, bonusChest: !!opts.bonus,
+      biome: opts.biome || 'plains', experiments: opts.experiments || {}, gameRules: opts.gameRules || null,
+      legacyBedrock: !!legacy, legacySize: legacy ? (opts.legacySize || 256) : 0 };
     await DB.putWorld(meta);
     return this.loadWorld(id);
     })();
@@ -9059,6 +9064,9 @@ class Game {
     if (this.ui) { this.ui.chat.length = 0; this.ui.chatOff = 0; this.ui.pinned = null; }
     this.ui.open(new LoadingScreen(this, '正在载入世界…'));
     this.worldMeta = meta;
+    // 旧版基岩彩蛋：±128 的有限世界边界（256×256），进入后把玩家限制在边界内
+    this.legacyBorder = meta.legacyBedrock ? Math.max(32, Math.floor((meta.legacySize || 256) / 2)) : 0;
+    this.legacyBedrock = !!meta.legacyBedrock;
     if (this.world) this.unloadAll();
     this.entities = []; this.particles.list = []; this.sleeping = null; this.portalOverlay = 0;
     this.welcome = true;
@@ -9077,6 +9085,12 @@ class Game {
     for (const old in ADV_ALIASES) if (this.adv[old] && !this.adv[ADV_ALIASES[old]]) this.adv[ADV_ALIASES[old]] = this.adv[old];
     this.tutorial = meta.tutorial ?? (meta.mode === 'survival' && !['mc', 'vet'].includes(this.settings.playerKind) ? 0 : -1); this.tutStat = { moved: 0 }; // (onboard.js: players who know the game skip it)
     let sp = meta.spawn;
+    if (!sp && meta.legacyBedrock && this.dim === 'overworld') {
+      // 旧版基岩 999 彩蛋：在出生点附近铺两座小村庄（各带铁匠铺），
+      // 让 999 的“开局在两个村庄里”在网页版也能成立。
+      sp = buildLegacy999Villages(this);
+      if (sp) meta.spawn = sp;
+    }
     if (!sp) {
       if (meta.worldType === 'debug') sp = [0, 71, 0]; // 原版调试世界：出生在世界中心、网格上方
       else if (meta.gen === 2) { const [x, z] = await this.genSpawn(); sp = [x, 200, z]; }
@@ -9569,6 +9583,18 @@ class Game {
     if (this.tickSleep()) { }
     else if (!p.loadedHere()) { p.savePrev(); }
     else { if (p.respawnGround) this.guard('respawn', () => this.respawnSettle()); this.guard('player', () => p.tick(input)); }
+    if (this.legacyBorder) {
+      const b = this.legacyBorder, was = [p.pos[0], p.pos[2]];
+      p.pos[0] = clamp(p.pos[0], -b, b); p.pos[2] = clamp(p.pos[2], -b, b);
+      if (was[0] !== p.pos[0] || was[1] !== p.pos[2]) {
+        p.vel[0] = 0; p.vel[2] = 0;
+        const now = performance.now();
+        if (!this._legacyEdgeAt || now - this._legacyEdgeAt > 8000) {
+          this._legacyEdgeAt = now;
+          try { this.ui.message('旧世界边界：再往外就是旧版基岩版的尽头了', '#AAAAAA'); } catch (e) { }
+        }
+      }
+    }
     this.tickPlayerBody(p);
     if (this.net) { this.guard('interaction', () => this.handleInteraction()); this.guard('net', () => this.netTick()); return; }
     if (this.p2pGuest) { this.guard('interaction', () => this.handleInteraction()); this.guard('p2p', () => this.p2pGuest.tick()); return; } // a local room's guest (p2p.js): the host runs the world // on a server: everything else is the server's (net.js)
@@ -16089,3 +16115,130 @@ self.CAMP263_LOOT={"chests/abandoned_camp_common_chest":{"type":"minecraft:chest
     return false;
   }
 })();
+
+// ===== 隐藏彩蛋：旧版基岩 999 的两座村庄 =====
+// 不是 0.14.3 的完整 jigsaw 复刻，而是把 999 最让人记得的东西做出来：
+// 出生在村庄里，两个村庄各有一座带熔岩池和箱子的铁匠铺，四周是有限旧世界。
+function buildLegacy999Villages(game) {
+  const w = game.world, B = BID, S = (x, y, z, id, meta = 0) => w.setBlock(x, y, z, id, meta, 2);
+  const A = 0;
+  const sites = [{ cx: -28, cz: -18 }, { cx: -28, cz: 18 }];
+  const RX = 17, RZ = 15;
+  // 先把两座村庄涉及的区块真实生成出来，否则 setBlock 找不到 chunk
+  const minCX = Math.floor((sites[0].cx - RX) / 16), maxCX = Math.floor((sites[1].cx + RX) / 16);
+  const minCZ = Math.floor((sites[0].cz - RZ) / 16), maxCZ = Math.floor((sites[1].cz + RZ) / 16);
+  for (let cx = minCX; cx <= maxCX; cx++) for (let cz = minCZ; cz <= maxCZ; cz++) {
+    if (!w.chunks.has(ckey(cx, cz))) game.loadChunk(cx, cz);
+  }
+  const topFor = (site) => {
+    let top = 64;
+    for (let x = site.cx - 10; x <= site.cx + 10; x++) for (let z = site.cz - 8; z <= site.cz + 8; z++) {
+      const y = w.surfaceY(x, z); if (y > top) top = y;
+    }
+    return top;
+  };
+  const top1 = topFor(sites[0]), top2 = topFor(sites[1]);
+
+  const platform = (site, top) => {
+    for (let x = site.cx - RX; x <= site.cx + RX; x++) for (let z = site.cz - RZ; z <= site.cz + RZ; z++) {
+      // 清掉村庄地块上方的树和地形凸起（旧版村庄不会长在树里）
+      for (let y = top + 1; y <= top + 32; y++) S(x, y, z, A);
+      for (let y = top - 1; y >= top - 4; y--) S(x, y, z, B.dirt);
+      S(x, top, z, B.grass_block);
+    }
+  };
+  platform(sites[0], top1);
+  platform(sites[1], top2);
+
+  const house = (x0, z0, top, wide, deep, roofId) => {
+    for (let x = x0; x < x0 + wide; x++) for (let z = z0; z < z0 + deep; z++) {
+      S(x, top, z, B.cobblestone);
+      for (let y = top + 1; y <= top + 3; y++) {
+        const edge = x === x0 || x === x0 + wide - 1 || z === z0 || z === z0 + deep - 1;
+        S(x, y, z, edge ? B.oak_planks : A);
+      }
+    }
+    // 门：正面中间留门洞
+    const dx = x0 + Math.floor(wide / 2);
+    S(dx, top + 1, z0, B.oak_door, 0); S(dx, top + 2, z0, B.oak_door, 8);
+    // 窗
+    S(x0 + 1, top + 2, z0 + deep - 1, B.glass_pane); S(x0 + wide - 2, top + 2, z0 + deep - 1, B.glass_pane);
+    // 屋顶
+    for (let x = x0 - 1; x <= x0 + wide; x++) for (let z = z0 - 1; z <= z0 + deep; z++) S(x, top + 4, z, roofId || B.oak_slab);
+    // 火把
+    S(x0 + 1, top + 4, z0 - 1, B.torch); S(x0 + wide - 2, top + 4, z0 - 1, B.torch);
+  };
+
+  const blacksmith = (x0, z0, top) => {
+    const W = 9, D = 7;
+    for (let x = x0; x < x0 + W; x++) for (let z = z0; z < z0 + D; z++) {
+      S(x, top, z, B.cobblestone);
+      for (let y = top + 1; y <= top + 4; y++) {
+        const edge = x === x0 || x === x0 + W - 1 || z === z0 || z === z0 + D - 1;
+        S(x, y, z, edge ? (y === top + 1 ? B.cobblestone : B.stone_bricks) : A);
+      }
+    }
+    // 正门
+    const dx = x0 + 4;
+    S(dx, top + 1, z0, B.oak_door, 0); S(dx, top + 2, z0, B.oak_door, 8);
+    // 屋顶（阶梯感）
+    for (let x = x0 - 1; x <= x0 + W; x++) for (let z = z0 - 1; z <= z0 + D; z++) {
+      S(x, top + 5, z, B.oak_slab);
+      if (x === x0 - 1 || x === x0 + W || z === z0 - 1 || z === z0 + D) S(x, top + 6, z, B.cobblestone);
+    }
+    // 铁匠铺熔岩池（2×2）和箱子
+    for (let x = x0 + 6; x <= x0 + 7; x++) for (let z = z0 + 2; z <= z0 + 3; z++) S(x, top + 1, z, B.lava);
+    S(x0 + 1, top + 1, z0 + 1, B.chest);
+    try {
+      const be = game.getBlockEntity(x0 + 1, top + 1, z0 + 1, 'chest');
+      if (be) {
+        be.slots = [makeStack('bread', 3), makeStack('iron_ingot', 2), makeStack('oak_planks', 8), makeStack('coal', 4)];
+      }
+    } catch (e) { }
+    // 铁匠铺的工作台、熔炉和火把
+    S(x0 + 2, top + 1, z0 + 1, B.crafting_table);
+    S(x0 + 2, top + 1, z0 + 2, B.furnace);
+    S(x0 + 4, top + 4, z0 - 1, B.torch);
+    S(x0 + 6, top + 4, z0 - 1, B.torch);
+  };
+
+  const village = (site, top, variant) => {
+    // 主路：十字土路
+    for (let x = site.cx - 13; x <= site.cx + 13; x++) for (let z = site.cz - 1; z <= site.cz + 1; z++) S(x, top, z, B.dirt_path);
+    for (let z = site.cz - 11; z <= site.cz + 11; z++) for (let x = site.cx - 1; x <= site.cx + 1; x++) S(x, top, z, B.dirt_path);
+    // 井
+    const wx = site.cx + 5, wz = site.cz + 5;
+    for (let x = wx - 1; x <= wx + 1; x++) for (let z = wz - 1; z <= wz + 1; z++) S(x, top, z, B.cobblestone);
+    S(wx, top, wz, B.water);
+    for (let x = wx - 1; x <= wx + 1; x++) for (let z = wz - 1; z <= wz + 1; z++) S(x, top + 3, z, B.cobblestone);
+    S(wx - 1, top + 1, wz, B.cobblestone); S(wx + 1, top + 1, wz, B.cobblestone);
+    // 两栋民居
+    house(site.cx - 13, site.cz + 5, top, 8, 6, B.oak_slab);
+    house(site.cx + 6, site.cz - 12, top, 7, 6, B.dark_oak_slab);
+    // 铁匠铺
+    blacksmith(site.cx - 13, site.cz - 10, top);
+    // 农田
+    const fx = site.cx + 8, fz = site.cz + 6;
+    for (let x = fx; x <= fx + 8; x++) for (let z = fz; z <= fz + 4; z++) {
+      S(x, top, z, B.farmland);
+      if (z === fz + 2) S(x, top, z, B.water); else S(x, top + 1, z, B.wheat, 7);
+    }
+    for (let x = fx - 1; x <= fx + 9; x++) { S(x, top + 1, fz - 1, B.oak_fence); S(x, top + 1, fz + 5, B.oak_fence); }
+    // 路灯
+    for (const [lx, lz] of [[site.cx - 9, site.cz + 1], [site.cx + 9, site.cz + 1], [site.cx + 1, site.cz - 9], [site.cx + 1, site.cz + 9]]) {
+      S(lx, top + 1, lz, B.cobblestone); S(lx, top + 2, lz, B.cobblestone); S(lx, top + 3, lz, B.torch);
+    }
+    // 村民（不依赖村庄 AI，至少站在那里）
+    try {
+      for (const [vx, vz] of [[site.cx + 2, site.cz + 2], [site.cx - 3, site.cz + 3], [site.cx + 4, site.cz - 6]]) {
+        const v = createMob(game, 'villager', vx + 0.5, top + 1, vz + 0.5);
+        if (v) { v.persistent = true; game.entities.push(v); }
+      }
+    } catch (e) { }
+  };
+
+  village(sites[0], top1, 1);
+  village(sites[1], top2, 2);
+  // 出生在第一个村庄的主路上，抬头就能看到村庄和另一个村庄的方向
+  return [sites[0].cx + 0.5, top1 + 1, sites[0].cz + 1.5];
+}

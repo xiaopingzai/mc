@@ -3324,6 +3324,8 @@ class TitleScreen extends MenuScreen {
     if (Account.loggedIn) this.widgets.push({ x: 4, y: 4, w: Math.min(120, Font.width(Account.name) + 30), h: 18, label: fitText(Account.name, 110), tip: ['账号：游戏名、识别码、退出登录'], onClick: () => g.ui.open(new AccountScreen(g, this)) });
     else this.widgets.push({ x: 4, y: 4, w: 60, h: 18, gold: true, label: '登录', tip: ['登录后可以联机、云存档、换皮肤和披风'], onClick: () => g.ui.open(new LoginScreen(g, () => g.ui.open(new TitleScreen(g)))) });
     if (Account.loggedIn && !Account.allUnlocked() && !short) this.widgets.push({ x: u.w - 112, y: 4, w: 108, h: 18, gold: true, label: '解锁披风和联机', onClick: () => g.ui.open(new UnlockScreen(g, this)) });
+    // 隐藏彩蛋的点击区：标题 Logo（连点 9 下，或键盘连按 9 三下）
+    this.logoBox = short ? { x: cx - 100, y: 10, w: 200, h: 34 } : { x: cx - 128, y: 30, w: 256, h: 44 };
   }
   drawExtra(ui) {
     const c = ui.ctx, w = ui.w, lg = ui.img.logo, ed = ui.img.edition;
@@ -3365,6 +3367,105 @@ class TitleScreen extends MenuScreen {
     Font.draw(c, t, ui.w - Font.width(t) - 2, ui.h - 10, '#FFFFFF');
   }
 }
+
+// 隐藏彩蛋：旧版 MC 基岩版 0.14.3 的 999 种子
+// 标题 Logo 连点 9 下，或键盘连按三下 9 打开。进入后固定种子 999、旧格式生成器、±128 有限世界。
+class LegacyBedrock999Screen extends MenuScreen {
+  constructor(game) {
+    super(game, null); this.blurBg = false; this.bgDirt = true; this.bgDim = 0; this.error = ''; this.busy = false;
+  }
+  layout() {
+    const u = this.game.ui, cx = u.w / 2;
+    this.widgets = [
+      { x: cx - 104, y: u.h - 66, w: 208, h: 24, label: '进入 999 旧世界', gold: true, onClick: () => this.enter() },
+      { x: cx - 104, y: u.h - 34, w: 208, h: 20, label: '回到现在的版本', onClick: () => this.game.ui.open(new TitleScreen(this.game)) },
+    ];
+  }
+  enter() {
+    if (this.busy) return;
+    this.busy = true; this.error = '';
+    const g = this.game;
+    g.ui.hideInput();
+    // 0.14.3 的「旧世界」是有限世界；这里用旧格式生成器 + ±128 边界近似，
+    // 999 种子和旧版地形不会经过 1.18 的新生成器。
+    g.createWorld('999 · 旧版基岩', '999', 'survival', false, {
+      worldType: 'legacy999', legacyBedrock: true, legacySize: 256,
+      difficulty: 2, cheats: false, structures: true,
+    }).then(() => { this.busy = false; }, (e) => {
+      this.busy = false;
+      console.error(e);
+      this.error = '旧世界创建失败：' + String(e && e.message || e);
+      this.layout();
+    });
+  }
+  drawExtra(ui) {
+    const c = ui.ctx, w = ui.w, h = ui.h;
+    const pw = Math.min(330, w - 22), ph = Math.min(230, h - 120);
+    const px = Math.floor((w - pw) / 2), py = Math.max(24, Math.floor((h - ph) / 2) - 24);
+    c.fillStyle = 'rgba(0,0,0,0.72)'; c.fillRect(px, py, pw, ph);
+    c.strokeStyle = '#55FF55'; c.lineWidth = 2; c.strokeRect(px + 2, py + 2, pw - 4, ph - 4);
+    c.textAlign = 'center';
+    c.fillStyle = '#FFFFFF'; c.font = 'bold 28px monospace';
+    c.fillText('MINECRAFT', w / 2, py + 40);
+    c.fillStyle = '#FFFF55'; c.font = '12px monospace';
+    c.fillText('POCKET EDITION 0.14.3', w / 2, py + 58);
+    c.fillStyle = '#A0A0A0'; c.font = '11px monospace';
+    c.fillText('旧版基岩版 · 隐藏彩蛋', w / 2, py + 76);
+    c.fillStyle = '#FFFFFF'; c.font = 'bold 16px monospace';
+    c.fillText('种子 999', w / 2, py + 102);
+    c.fillStyle = '#AAAAAA'; c.font = '11px monospace';
+    c.fillText('旧世界类型 · 有限世界 · 256 × 256', w / 2, py + 120);
+    c.fillText('那是很多人第一次遇见村庄的种子', w / 2, py + 138);
+    if (this.error) { c.fillStyle = '#FF5555'; c.font = '11px monospace'; c.fillText(this.error.slice(0, 46), w / 2, py + 158); }
+    c.fillStyle = '#777777'; c.font = '10px monospace';
+    c.fillText('进入后固定种子 999；不是完整的 0.14.3 引擎复刻', w / 2, py + ph - 12);
+    c.textAlign = 'left';
+  }
+  onEsc() { this.game.ui.open(new TitleScreen(this.game)); }
+}
+
+// 标题页：连点 Logo 9 下，或键盘连按 9 三下，打开旧版基岩 999 彩蛋
+(() => {
+  const titleDown = TitleScreen.prototype.mouseDown;
+  TitleScreen.prototype.mouseDown = function (ui, mx, my, b) {
+    if (b === 0 && this.logoBox) {
+      const L = this.logoBox;
+      if (mx >= L.x && mx <= L.x + L.w && my >= L.y && my <= L.y + L.h) {
+        const now = performance.now();
+        if (!this.logoTapsAt || now - this.logoTapsAt > 1600) this.logoTaps = 0;
+        this.logoTapsAt = now;
+        this.logoTaps = (this.logoTaps || 0) + 1;
+        if (this.logoTaps >= 9) {
+          this.logoTaps = 0;
+          try { Sound.init(); Sound.click(); } catch (e) { }
+          this.game.ui.open(new LegacyBedrock999Screen(this.game));
+          return;
+        }
+        return;
+      }
+      this.logoTaps = 0;
+    }
+    return titleDown.call(this, ui, mx, my, b);
+  };
+  const titleKey = TitleScreen.prototype.key || MenuScreen.prototype.key;
+  TitleScreen.prototype.key = function (ui, ev) {
+    if (ev.key === '9') {
+      const now = performance.now();
+      if (!this.nineAt || now - this.nineAt > 900) this.nineCount = 0;
+      this.nineAt = now;
+      this.nineCount = (this.nineCount || 0) + 1;
+      if (this.nineCount >= 3) {
+        this.nineCount = 0;
+        try { Sound.init(); Sound.click(); } catch (e) { }
+        this.game.ui.open(new LegacyBedrock999Screen(this.game));
+        return true;
+      }
+      return true;
+    }
+    this.nineCount = 0;
+    return titleKey.call(this, ui, ev);
+  };
+})();
 
 // vanilla SelectWorldScreen + WorldSelectionList
 class WorldListScreen extends MenuScreen {
