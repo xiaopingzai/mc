@@ -1,0 +1,12 @@
+{
+  "name": "opusmc-netlify",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OpusMC static game plus Netlify Functions backend",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.12"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

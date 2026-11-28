@@ -28012,12 +28012,30 @@ const CloudSave = (() => {
     out.set(cte.encode('OMCC'), 0); odv.setUint32(4, headLen); out.set(head, 8); out.set(pt, 8 + headLen);
     return out;
   }
+  // 云存档整包可能超过 Netlify Functions 的单次请求上限：按 3.5 MB 分片上传，
+  // 最后一片由后端拼接并落盘，前端仍按一次同步处理。
+  const CHUNK = 3.5 << 20;
   async function post(bytes) {
-    let r;
-    try { r = await fetch(Account.apiBase() + '/cloud.php?action=push&_t=' + encodeURIComponent(Account.token), { method: 'POST', body: bytes }); }
-    catch (e) { throw new Error('连不上服务器，云存档没有同步'); }
-    const j = await r.json().catch(() => ({ error: '服务器没有回应' }));
-    return { status: r.status, j };
+    try {
+      if (bytes.length > CHUNK) {
+        const upload = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+        const total = Math.ceil(bytes.length / CHUNK);
+        let last = null;
+        for (let i = 0; i < total; i++) {
+          const part = bytes.subarray(i * CHUNK, Math.min((i + 1) * CHUNK, bytes.length));
+          const url = Account.apiBase() + '/cloud.php?action=push&_t=' + encodeURIComponent(Account.token)
+            + '&upload=' + encodeURIComponent(upload) + '&index=' + i + '&total=' + total;
+          const r = await fetch(url, { method: 'POST', body: part });
+          const j = await r.json().catch(() => ({ error: '服务器没有回应（HTTP ' + r.status + '）' }));
+          if (!r.ok || (j && j.error)) return { status: r.status, j };
+          last = { status: r.status, j };
+        }
+        return last || { status: 0, j: { error: '云存档分片上传失败' } };
+      }
+      const r = await fetch(Account.apiBase() + '/cloud.php?action=push&_t=' + encodeURIComponent(Account.token), { method: 'POST', body: bytes });
+      const j = await r.json().catch(() => ({ error: '服务器没有回应' }));
+      return { status: r.status, j };
+    } catch (e) { throw new Error('连不上服务器，云存档没有同步'); }
   }
   // the world record as it goes up (without its cloud bookkeeping)
   const metaOut = (m) => { const o = { ...m }; delete o.cloud; return o; };
@@ -28278,6 +28296,7 @@ class CloudConflictScreen extends MenuScreen {
     else if (!Account.loggedIn) Font.center(ui.ctx, fitText('登录后可以联机、云存档、换皮肤和披风', ui.w - 8), ui.w / 2, ui.h - 22, '#A0A0A0');
   };
 })();
+
 
 
 ;
