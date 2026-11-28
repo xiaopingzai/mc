@@ -16,5 +16,17 @@
   status = 200
   force = true
 
+# The three game bundles are versioned with ?v=...; cache them hard so a phone
+# does not re-download ~6 MB every time the page opens.
+[[headers]]
+  for = "/js/pages-part*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/media/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
 [functions.api]
   timeout = 26

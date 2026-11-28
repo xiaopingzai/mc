@@ -230,16 +230,16 @@ else{W.addEventListener("load",arm,false);}
   #textinput { position: absolute; display: none; background: transparent; border: none; outline: none; color: transparent;
     caret-color: transparent; font-family: monospace; padding: 0 2px; z-index: 5; }
   #err { position: absolute; left: 10%; top: 30%; width: 80%; color: #fff; font: 18px sans-serif; white-space: pre-wrap; display: none; text-align: center; }
-  #boot { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font: 16px "Microsoft YaHei", sans-serif; background: #ef323d; overflow: hidden; }
+  #boot { position: fixed; left: 0; top: 0; right: 0; bottom: 0; width: 100%; height: 100%; min-width: 100%; min-height: 100%; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font: 16px "Microsoft YaHei", sans-serif; background: #ef323d; overflow: hidden; }
   #boot b { font-size: 30px; letter-spacing: 2px; margin-bottom: 18px; }
   #bootbar { width: min(320px, 70vw); height: 10px; border: 2px solid #fff; padding: 2px; box-sizing: content-box; }
   #bootbar i { display: block; height: 100%; width: 0; background: #fff; }
-  #boottext { margin-top: 10px; font-size: 14px; }
-  #bootnote { position: absolute; bottom: 14px; font-size: 12px; opacity: .85; }
+  #boottext { margin-top: 10px; font-size: 14px; max-width: calc(100% - 32px); padding: 0 16px; box-sizing: border-box; line-height: 1.5; text-align: center; }
+  #bootnote { position: absolute; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom)); padding: 0 12px; font-size: 12px; line-height: 1.45; text-align: center; opacity: .85; }
   /* 启动视频：全屏盖住启动画面，加载信息压在视频上 */
-  #bootvideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; background: #000; z-index: 0; outline: none; }
+  #bootvideo { position: absolute; left: 0; top: 0; right: 0; bottom: 0; width: 100%; height: 100%; object-fit: cover; display: none; background: #000; z-index: 0; outline: none; }
   #bootvideo::-webkit-media-controls, #bootvideo::-webkit-media-controls-enclosure, #bootvideo::-webkit-media-controls-start-playback-button { display: none !important; -webkit-appearance: none; }
-  #bootplay { display: none; position: absolute; inset: 0; z-index: 1; background: #000; color: #fff; align-items: center; justify-content: center; flex-direction: column; gap: 12px; cursor: pointer; }
+  #bootplay { display: none; position: absolute; left: 0; top: 0; right: 0; bottom: 0; width: 100%; height: 100%; z-index: 1; background: #000; color: #fff; align-items: center; justify-content: center; flex-direction: column; gap: 12px; cursor: pointer; }
   #bootplay i { width: 54px; height: 54px; border: 2px solid #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 24px; background: rgba(255,255,255,.12); }
   #bootplay em { font-style: normal; font-size: 13px; opacity: .85; }
   #boot.hasplay #bootplay { justify-content: flex-start; padding-top: 20vh; box-sizing: border-box; }
@@ -251,16 +251,22 @@ else{W.addEventListener("load",arm,false);}
   #boot.hasvideo #bootbar i { background: #7FE07F; }
   #bootbar, #boottext { position: relative; z-index: 3; }
   #boottext { position: relative; }
+  #bootretry { display: none; margin-top: 12px; padding: 9px 18px; border: 2px solid #fff; background: #8e1f28; color: #fff; font: 14px "Microsoft YaHei", sans-serif; cursor: pointer; z-index: 4; }
+  @supports (height: 100dvh) {
+    #boot { height: 100dvh; min-height: 100dvh; }
+    #bootvideo, #bootplay, #titlevideo { height: 100dvh; }
+  }
   #boot.hasvideo #boottext { position: absolute; left: 0; right: 0; bottom: 26px; margin: 0; text-align: center; text-shadow: 0 1px 2px #000; }
   #boothint { display: none; position: absolute; left: 50%; bottom: 72px; transform: translateX(-50%); font-size: 12px; color: #fff; text-shadow: 0 1px 2px #000; white-space: nowrap; opacity: .9; }
   #boot.hasvideo #boothint { display: block; }
   #bootcontinue { display: none; position: absolute; left: 50%; top: 62%; transform: translate(-50%,-50%); z-index: 7; padding: 10px 28px; font: 16px "Microsoft YaHei", sans-serif; color: #fff; background: #6f6f6f; border: 2px solid #000; box-shadow: inset 2px 2px 0 #aaa, inset -2px -2px 0 #3a3a3a; cursor: pointer; text-shadow: 1px 1px 0 #000; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   #bootcontinue:hover { background: #7d86c8; }
+  #nojs { position: fixed; left: 0; top: 0; right: 0; bottom: 0; width: 100%; height: 100%; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; background: #1b1b22; color: #fff; font: 15px/1.8 "Microsoft YaHei", sans-serif; text-align: center; }
   @media (max-width: 560px) {
     #bootcontinue { min-width: 180px; min-height: 48px; padding: 12px 30px; font-size: 18px; top: auto; bottom: 104px; }
   }
   /* 主菜单视频背景：在 #gl 之上、#ui 之下 */
-  #titlevideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; background: #000; pointer-events: none; z-index: 1; }
+  #titlevideo { position: absolute; left: 0; top: 0; right: 0; bottom: 0; width: 100%; height: 100%; object-fit: cover; display: none; background: #000; pointer-events: none; z-index: 1; }
 </style>
 </head>
 <body>
@@ -268,7 +274,8 @@ else{W.addEventListener("load",arm,false);}
 <video id="titlevideo" muted playsinline loop preload="auto"></video>
 <canvas id="ui"></canvas>
 <input id="textinput" type="text" autocomplete="off" spellcheck="false">
-<div id="boot"><video id="bootvideo" muted playsinline loop preload="auto" controlslist="nodownload" disablepictureinpicture></video><div id="bootplay"><i>▶</i><em>点击播放启动动画</em></div><b>OpusMC</b><div id="bootbar"><i></i></div><div id="boottext">正在加载… 0%</div><div id="boothint">默认开启声音 · 加载完成后点「点击开始」进入主菜单</div><button id="bootcontinue" type="button">点击开始</button><div id="bootnote">原作：OpusMC（B站 Toy 平台）· 二创部署：xiaopingzai · 仅供学习交流</div></div>
+<div id="boot"><video id="bootvideo" muted playsinline loop preload="auto" controlslist="nodownload" disablepictureinpicture></video><div id="bootplay"><i>▶</i><em>点击播放启动动画</em></div><b>OpusMC</b><div id="bootbar"><i></i></div><div id="boottext">正在加载… 0%</div><button id="bootretry" type="button" onclick="location.reload()">重新加载</button><div id="boothint">默认开启声音 · 加载完成后点「点击开始」进入主菜单</div><button id="bootcontinue" type="button">点击开始</button><div id="bootnote">原作：OpusMC（B站 Toy 平台）· 二创部署：xiaopingzai · 仅供学习交流</div></div>
+<noscript><div id="nojs">JavaScript 被关闭或当前内置浏览器禁止运行脚本，游戏无法加载。<br>请用 Safari / Chrome 打开本页，并允许 JavaScript。</div></noscript>
 <script>
 /* 早期 WebGL2 探测：游戏渲染器深度依赖 WebGL2（#version 300 es / 数组纹理 / fenceSync 等），
    无法降级 WebGL1。在任何游戏脚本加载前先探测，不支持则直接给出可操作的提示并阻断启动，
@@ -308,16 +315,32 @@ else{W.addEventListener("load",arm,false);}
   // the loading bar: the game's scripts as they arrive (how many there are: counted in this page itself), then the
   // start-up (textures, the title world) creeping on until the title screen is up
   (function () {
-    var bar = document.querySelector('#bootbar i'), txt = document.getElementById('boottext'), total = 90, got = 0, shown = 0;
-    try { fetch(location.href, { cache: 'force-cache' }).then(function (r) { return r.text(); }).then(function (t) { var n = (t.match(/<script src=/g) || []).length; if (n) total = n; }).catch(function () { }); } catch (e) { }
-    document.addEventListener('load', function (e) { if (e.target && e.target.tagName === 'SCRIPT' && e.target.src) got++; }, true);
+    var bar = document.querySelector('#bootbar i'), txt = document.getElementById('boottext'),
+        retry = document.getElementById('bootretry'), total = 3, got = 0, shown = 0, errors = 0,
+        started = performance.now();
+    document.addEventListener('load', function (e) {
+      if (e.target && e.target.tagName === 'SCRIPT' && e.target.src) got++;
+    }, true);
+    // A missing or blocked script used to leave this page at 0 forever with no explanation.
+    document.addEventListener('error', function (e) {
+      if (!e.target || e.target.tagName !== 'SCRIPT' || !e.target.src) return;
+      errors++;
+      txt.textContent = '游戏脚本加载失败（' + errors + ' 个）· 请检查网络后点「重新加载」';
+      if (retry) retry.style.display = 'inline-block';
+    }, true);
+    setTimeout(function () {
+      if (!got && !errors && !window.__bootDone) {
+        txt.textContent = '正在下载游戏资源…（首次约 6 MB，网络较慢请稍候）';
+        if (retry) retry.style.display = 'inline-block';
+      }
+    }, 8000);
     (function step() {
       var b = document.getElementById('boot'); if (!b || b.style.display === 'none' || window.__bootDone) return;
       var want = got < total ? 85 * got / total : 85 + 14 * (1 - Math.exp(-(performance.now() - (step.t || (step.t = performance.now()))) / 4000));
       shown = Math.max(shown, Math.min(99, want));
       window.__bootProgress = shown;
       bar.style.width = shown.toFixed(1) + '%';
-      txt.textContent = (got < total ? '正在加载… ' : '正在准备世界… ') + Math.floor(shown) + '%';
+      if (!errors) txt.textContent = (got < total ? '正在加载… ' : '正在准备世界… ') + Math.floor(shown) + '%';
       setTimeout(step, 100);
     })();
   })();
@@ -535,8 +558,8 @@ else{W.addEventListener("load",arm,false);}
     setTimeout(wait, 100);
   })();
 </script>
-<script src="js/pages-part1.js?v=20261128d"></script>
-<script src="js/pages-part2.js?v=20261128d"></script>
-<script src="js/pages-part3.js?v=20261128d"></script>
+<script src="js/pages-part1.js?v=20261128e"></script>
+<script src="js/pages-part2.js?v=20261128e"></script>
+<script src="js/pages-part3.js?v=20261128e"></script>
 </body>
 </html>
