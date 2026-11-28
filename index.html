@@ -330,7 +330,7 @@ else{W.addEventListener("load",arm,false);}
     }, true);
     setTimeout(function () {
       if (!got && !errors && !window.__bootDone) {
-        txt.textContent = '正在下载游戏资源…（首次约 6 MB，网络较慢请稍候）';
+        txt.textContent = '正在下载游戏资源（约 6 MB）… 若一直为 0%，请用 Safari / Chrome 打开';
         if (retry) retry.style.display = 'inline-block';
       }
     }, 8000);
