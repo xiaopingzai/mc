@@ -3377,15 +3377,18 @@ class LegacyBedrock999Screen extends MenuScreen {
     this.splash = ['The sky is the limit!', '100% pure!', 'Made by Mojang!', 'Diamonds!'][Math.floor(Math.random() * 4)];
     // 0.14.3 是横屏游戏；让 Stage 在竖屏手机上把整个页面转 90°，和原版一样。
     this.game.legacyLandscape = true;
+    // 标题背景直接使用 999 世界的游戏内截图，不搬原版素材。
+    this.bgImg = new Image();
+    this.bgImg.src = 'media/legacy_title_bg.png';
     try { Stage.update(); } catch (e) { }
   }
   layout() {
     const u = this.game.ui, W = u.w, H = u.h, cx = W / 2;
     const top = Math.max(126, Math.floor(H * 0.50));
     this.buttons = [
-      { x: cx - 110, y: top, w: 220, h: 38, label: '游戏', main: true, onClick: () => this.enter() },
-      { x: cx - 110, y: top + 46, w: 106, h: 34, label: '选项', onClick: () => { this.notice = '这是 999 彩蛋，选项仍用现在的设置。'; Sound.click(); } },
-      { x: cx + 4, y: top + 46, w: 106, h: 34, label: '皮肤', onClick: () => { this.notice = '这是 999 彩蛋，皮肤仍用现在的账号皮肤。'; Sound.click(); } },
+      { x: cx - 80, y: top, w: 160, h: 38, label: '游戏', main: true, onClick: () => this.enter() },
+      { x: cx - 80, y: top + 44, w: 78, h: 32, label: '选项', onClick: () => { this.notice = '这是 999 彩蛋，选项仍用现在的设置。'; Sound.click(); } },
+      { x: cx + 2, y: top + 44, w: 78, h: 32, label: '皮肤', onClick: () => { this.notice = '这是 999 彩蛋，皮肤仍用现在的账号皮肤。'; Sound.click(); } },
       { x: cx - 62, y: H - 44, w: 124, h: 22, label: '返回现代版本', small: true, onClick: () => this.leave() },
     ];
     this.widgets = [];
@@ -3422,6 +3425,14 @@ class LegacyBedrock999Screen extends MenuScreen {
   }
   drawPanorama(ui) {
     const c = ui.ctx, W = ui.w, H = ui.h;
+    if (this.bgImg && this.bgImg.complete && this.bgImg.naturalWidth) {
+      c.save();
+      try { c.filter = 'blur(2.5px)'; } catch (e) { }
+      c.drawImage(this.bgImg, 0, 0, W, H);
+      c.restore();
+      c.fillStyle = 'rgba(0,0,0,0.10)'; c.fillRect(0, 0, W, H);
+      return;
+    }
     const sky = c.createLinearGradient(0, 0, 0, H);
     sky.addColorStop(0, '#6D9FD8'); sky.addColorStop(0.55, '#A9C8E8'); sky.addColorStop(1, '#D9E8F2');
     c.fillStyle = sky; c.fillRect(0, 0, W, H);
@@ -3499,16 +3510,16 @@ class LegacyBedrock999Screen extends MenuScreen {
     const c = ui.ctx, W = ui.w, H = ui.h, cx = W / 2;
     this.drawPanorama(ui);
     // MINECRAFT 石质标题
-    const ly = Math.max(56, Math.floor(H * 0.115));
+    const ly = Math.max(52, Math.floor(H * 0.18));
     c.textAlign = 'center';
     c.font = 'bold 45px monospace';
     const stone = this.stonePattern(c);
-    for (const [ox, oy] of [[3, 3], [-3, 3], [3, -3], [-3, -3], [0, 0]]) {
-      c.fillStyle = (ox === 0 && oy === 0) ? stone : '#4A4A4A';
-      c.fillText('MINECRAFT', cx + ox, ly + oy);
-    }
+    // 石质 Logo 的厚度：一层层往右下叠，像 0.14.3 的立体石块标题
+    for (let d = 8; d >= 1; d--) { c.fillStyle = d > 3 ? '#2E2E2E' : '#555555'; c.fillText('MINECRAFT', cx + d, ly + d); }
+    c.fillStyle = '#1E1E1E'; c.fillText('MINECRAFT', cx - 1, ly - 1);
+    c.fillStyle = stone; c.fillText('MINECRAFT', cx, ly);
     // POCKET EDITION 石条
-    const bw = Math.min(210, W - 60), bx = cx - bw / 2, by = ly + 12;
+    const bw = Math.min(170, W - 60), bx = cx - bw / 2, by = ly + 12;
     c.fillStyle = '#8B8B8B'; c.fillRect(bx, by, bw, 18);
     c.fillStyle = '#BDBDBD'; c.fillRect(bx, by, bw, 2);
     c.fillStyle = '#3F3F3F'; c.fillRect(bx, by + 16, bw, 2);
@@ -35127,7 +35138,7 @@ Game.prototype.capturePanorama = function (size = 512) {
     const L = pl.call(this), g = this.g;
     if (!g || !g.legacyBedrock) return L;
     const hide = (r) => ({ x: -1000, y: -1000, w: 0, h: 0 });
-    for (const id of ['chat', 'view', 'players', 'emote', 'f3']) if (L[id]) L[id] = hide(L[id]);
+    for (const id of ['chat', 'view', 'players', 'emote', 'f3', 'attack', 'use', 'interact']) if (L[id]) L[id] = hide(L[id]);
     if (L.pause) L.pause = { x: Math.max(4, L.W - 26), y: 25, w: 18, h: 18 };
     return L;
   };
