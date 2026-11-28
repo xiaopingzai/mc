@@ -8819,7 +8819,7 @@ class Game {
     const saved = this.loadSettings();
     this.hadSettings = Object.keys(saved).length > 0;
     this.settings = Object.assign({ fov: 70, renderDist: 8, sens: 0.5, volume: 0.8, musicVolume: 0.5, gamma: 0.5, guiScale: 0, clouds: true, bobbing: true, advTooltips: false, resScale: 1, shaders: 0,
-      maxFps: 0, vsync: true, graphics: 'fancy', dynRes: false,
+      maxFps: 0, vsync: true, graphics: 'fancy', dynRes: false, rotatePortrait: false,
       // 开发者调试菜单（选项 → 开发者调试…）：只改本机显示和操作手感，不改存档里的世界
       devSpeed: 1, devReach: 0, devFly: false, devNoClip: false, devGod: false, devName: '',
       // 内置模组：连锁挖掘 / 矿透视。单机和房主用这两个开关，房客用房间权限
