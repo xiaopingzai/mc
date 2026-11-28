@@ -715,7 +715,7 @@ class BlockPickerScreen extends MenuScreen {
     const per = this.cols * this.rows;
     this.pages = Math.max(1, Math.ceil(this.list().length / per));
     this.page = Math.max(0, Math.min(this.page, this.pages - 1));
-    W.push({ x: 6, y: 4, w: 56, h: 18, label: '< 返回', onClick: () => this.close() });
+    W.push({ x: 6, y: 4, w: 56, h: 18, label: '< 返回', onClick: () => this.back() });
     W.push({ x: gb.x, y: gb.y + gb.h + 8, w: 64, h: 18, label: '< 上一页', enabled: this.page > 0, onClick: () => { this.page--; this.layout(); } });
     W.push({ x: gb.x + gb.w - 64, y: gb.y + gb.h + 8, w: 64, h: 18, label: '下一页 >', enabled: this.page < this.pages - 1, onClick: () => { this.page++; this.layout(); } });
     W.push({ text: () => `第 ${this.page + 1} / ${this.pages} 页`, x: u.w / 2, y: gb.y + gb.h + 14 });
@@ -767,14 +767,14 @@ class BlockPickerScreen extends MenuScreen {
       if (mx >= x && mx < x + this.cell && my >= y && my < y + this.cell) {
         Sound.click();
         this.parent.layers[this.idx].id = it.bid;
-        this.close();
+        this.back();
         return;
       }
     }
     super.mouseDown(ui, mx, my, button);
   }
-  close() { this.game.ui.hideInput(); this.game.ui.open(this.parent); }
-  onEsc() { this.close(); }
+  back() { this.game.ui.hideInput(); this.game.ui.open(this.parent); }
+  onEsc() { this.back(); }
 }
 
 // 原版 superflat 的 CustomizeFlatLevelScreen：层列表（图标 + 方块 + 层数，点行换方块）、生物群系、其余生成项
