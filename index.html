@@ -316,7 +316,7 @@ else{W.addEventListener("load",arm,false);}
   // start-up (textures, the title world) creeping on until the title screen is up
   (function () {
     var bar = document.querySelector('#bootbar i'), txt = document.getElementById('boottext'),
-        retry = document.getElementById('bootretry'), total = 3, got = 0, shown = 0, errors = 0,
+        retry = document.getElementById('bootretry'), total = 3, got = 0, shown = 0, errors = 0, slow = false,
         started = performance.now();
     document.addEventListener('load', function (e) {
       if (e.target && e.target.tagName === 'SCRIPT' && e.target.src) got++;
@@ -330,17 +330,19 @@ else{W.addEventListener("load",arm,false);}
     }, true);
     setTimeout(function () {
       if (!got && !errors && !window.__bootDone) {
+        slow = true;
         txt.textContent = '正在下载游戏资源（约 6 MB）… 若一直为 0%，请用 Safari / Chrome 打开';
         if (retry) retry.style.display = 'inline-block';
       }
     }, 8000);
     (function step() {
       var b = document.getElementById('boot'); if (!b || b.style.display === 'none' || window.__bootDone) return;
-      var want = got < total ? 85 * got / total : 85 + 14 * (1 - Math.exp(-(performance.now() - (step.t || (step.t = performance.now()))) / 4000));
+      var want = got ? (got < total ? 85 * got / total : 85 + 14 * (1 - Math.exp(-(performance.now() - (step.t || (step.t = performance.now()))) / 4000)))
+                     : 2 + 8 * (0.5 + 0.5 * Math.sin((performance.now() - started) / 700));
       shown = Math.max(shown, Math.min(99, want));
       window.__bootProgress = shown;
       bar.style.width = shown.toFixed(1) + '%';
-      if (!errors) txt.textContent = (got < total ? '正在加载… ' : '正在准备世界… ') + Math.floor(shown) + '%';
+      if (!errors && !slow) txt.textContent = got ? (got < total ? '正在加载… ' : '正在准备世界… ') + Math.floor(shown) + '%' : '正在连接服务器…';
       setTimeout(step, 100);
     })();
   })();
