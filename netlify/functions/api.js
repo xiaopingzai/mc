@@ -6,7 +6,14 @@ const { createApi } = require('../lib/backend');
 let api = null;
 function backend() {
   if (!api) {
-    const store = getStore('opusmc');
+    // Prefer a Personal Access Token + Project ID so reads are strongly
+    // consistent (cloud saves must be readable immediately after a chunked
+    // upload). Fall back to the automatic Lambda context when no token is set.
+    const token = process.env.NETLIFY_BLOBS_TOKEN;
+    const siteID = process.env.NETLIFY_SITE_ID || 'eae3c4eb-7be6-491f-a73f-3a5f7563634e';
+    const store = token
+      ? getStore({ name: 'opusmc', consistency: 'strong', siteID, token })
+      : getStore('opusmc');
     api = createApi({ store });
   }
   return api;
